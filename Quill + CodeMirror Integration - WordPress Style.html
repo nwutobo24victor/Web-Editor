@@ -1,22 +1,18 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Professional Dual-Mode Editor</title>
-    
-    <!-- Quill CSS -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.snow.min.css" rel="stylesheet">
-    
-    <!-- CodeMirror CSS -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/monokai.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/github.min.css">
-    
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    
-    <style>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Professional Dual-Mode Editor</title>
+        <!-- Quill CSS -->
+        <link href="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.snow.min.css" rel="stylesheet">
+        <!-- CodeMirror CSS -->
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/monokai.min.css">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/github.min.css">
+        <!-- Tailwind CSS -->
+        <script src="https://cdn.tailwindcss.com"></script>
+        <style>
         .editor-container {
             transition: all 0.3s ease;
         }
@@ -59,137 +55,135 @@
         .sync-indicator.error {
             @apply bg-red-500;
         }
-    </style>
-</head>
-<body class="bg-gray-100 min-h-screen">
-    <div class="container mx-auto p-6 max-w-6xl">
-        <!-- Header -->
-        <header class="mb-6">
-            <h1 class="text-3xl font-bold text-gray-800 mb-2">Professional Dual-Mode Editor</h1>
-            <p class="text-gray-600">Switch between visual and HTML editing with intelligent sync</p>
-        </header>
-
-        <!-- Main Editor Container -->
-        <div class="bg-white rounded-lg shadow-lg overflow-hidden">
-            <!-- Control Bar -->
-            <div class="bg-gray-50 border-b px-4 py-3 flex justify-between items-center">
-                <!-- Mode Buttons -->
-                <div class="flex space-x-2">
-                    <button id="visualBtn" onclick="switchToVisual()" 
-                            class="px-4 py-2 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700 transition-colors">
-                        Visual
-                    </button>
-                    <button id="textBtn" onclick="switchToText()" 
-                            class="px-4 py-2 bg-gray-200 text-gray-700 rounded text-sm font-medium hover:bg-gray-300 transition-colors">
-                        HTML
-                    </button>
-                    <button onclick="syncToOtherEditor()" 
-                            class="px-4 py-2 bg-green-600 text-white rounded text-sm font-medium hover:bg-green-700 transition-colors">
-                        Sync →
-                    </button>
+        </style>
+    </head>
+    <body class="bg-gray-100 min-h-screen">
+        <div class="container mx-auto p-6 max-w-6xl">
+            <!-- Header -->
+            <header class="mb-6">
+                <h1 class="text-3xl font-bold text-gray-800 mb-2">Professional Dual-Mode Editor</h1>
+                <p class="text-gray-600">Switch between visual and HTML editing with intelligent sync</p>
+            </header>
+            <!-- Main Editor Container -->
+            <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+                <div class="bg-gray-50 border-b px-4 py-3 ">
+                    <!-- Control Bar -->
+                    <div class="flex justify-between items-center">
+                        <!-- Mode Buttons -->
+                        <div class="flex space-x-2">
+                            <button id="visualBtn" onclick="switchToVisual()" class="px-4 py-2 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700 transition-colors">
+                                Visual
+                            </button>
+                            <button id="textBtn" onclick="switchToText()" class="px-4 py-2 bg-gray-200 text-gray-700 rounded text-sm font-medium hover:bg-gray-300 transition-colors">
+                                HTML
+                            </button>
+                            <button onclick="syncToOtherEditor()" class="px-4 py-2 bg-green-600 text-white rounded text-sm font-medium hover:bg-green-700 transition-colors">
+                                Sync →
+                            </button>
+                        </div>
+                        <!-- Status Bar -->
+                        <div class="status-bar">
+                            <div class="flex items-center">
+                                <span id="wordCount">Words: 0</span>
+                                <span class="sync-indicator synced" id="syncIndicator" title="Sync status"></span>
+                            </div>
+                            <div class="flex items-center space-x-4">
+                                <span id="cursorPos" class="text-xs"></span>
+                                <span id="debugInfo" class="text-xs text-blue-600"></span>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Toolbar for Text Mode -->
+                    <div id="textToolbar" class="flex space-x-2" style="display: none;">
+                        <button onclick="insertTag('<p>', '</p>')" class="toolbar-button" title="Paragraph">
+                            <span class="text-xs">&lt;p&gt;</span>
+                        </button>
+                        <button onclick="insertTag('<strong>', '</strong>')" class="toolbar-button" title="Bold">
+                            <strong>
+                                <span class="text-xs">&lt;b&gt;</span>
+                            </strong>
+                        </button>
+                        <button onclick="insertTag('<em>', '</em>')" class="toolbar-button" title="Italic">
+                            <em>
+                                <span class="text-xs">&lt;i&gt;</span>
+                            </em>
+                        </button>
+                        <button onclick="insertTag('<h1>', '</h1>')" class="toolbar-button" title="Heading 1">
+                            <span class="text-xs">&lt;h1&gt;</span>
+                        </button>
+                        <button onclick="insertTag('<h2>', '</h2>')" class="toolbar-button" title="Heading 2">
+                            <span class="text-xs">&lt;h2&gt;</span>
+                        </button>
+                        <button onclick="insertCodeTag()" class="toolbar-button" title="Inline Code">
+                            <span class="text-xs">&lt;/&gt;</span>
+                        </button>
+                        <button onclick="insertPreCode()" class="toolbar-button" title="Code Block">
+                            <span class="text-xs">&lt;pre&gt;</span>
+                        </button>
+                        <button onclick="insertLink()" class="toolbar-button" title="Link">
+                            <span class="text-xs">&lt;a href&gt;</span>
+                        </button>
+                        <button onclick="insertUL()" class="toolbar-button" title="Unordered List">
+                            <span class="text-xs">&lt;ul&gt;</span>
+                        </button>
+                        <button onclick="insertOL()" class="toolbar-button" title="Ordered List">
+                            <span class="text-xs">&lt;ol&gt;</span>
+                        </button>
+                        <button onclick="insertTag('<li>', '</li>')" class="toolbar-button" title="List Item">
+                            <span class="text-xs">&lt;li&gt;</span>
+                        </button>
+                        <div class="border-l border-gray-300 mx-2"></div>
+                        <button onclick="beautifyHTML()" class="toolbar-button" title="Format HTML">
+                            <span class="text-xs">Format</span>
+                        </button>
+                        <button onclick="toggleLineNumbers()" class="toolbar-button" title="Toggle Line Numbers">
+                            <span class="text-xs">Line Number</span>
+                        </button>
+                        <button onclick="toggleWordWrap()" class="toolbar-button" title="Toggle Word Wrap">
+                            <span class="text-xs">Word Wrap</span>
+                        </button>
+                        <select id="themeSelector" onchange="changeTheme()" class="text-xs px-2 py-1 border rounded">
+                            <option value="default">Light</option>
+                            <option value="monokai">Dark</option>
+                            <option value="github">GitHub</option>
+                        </select>
+                    </div>
                 </div>
-
-                <!-- Toolbar for Text Mode -->
-                <div id="textToolbar" class="flex space-x-2" style="display: none;">
-                    <button onclick="insertTag('<p>', '</p>')" class="toolbar-button" title="Bold">
-                        P
-                    </button>
-                    <button onclick="insertTag('<strong>', '</strong>')" class="toolbar-button" title="Bold">
-                        <strong>B</strong>
-                    </button>
-                    <button onclick="insertTag('<em>', '</em>')" class="toolbar-button" title="Italic">
-                        <em>I</em>
-                    </button>
-                    <button onclick="insertTag('<h1>', '</h1>')" class="toolbar-button" title="Heading 1">
-                        H1
-                    </button>
-                    <button onclick="insertTag('<h2>', '</h2>')" class="toolbar-button" title="Heading 2">
-                        H2
-                    </button>
-                    <button onclick="insertCodeTag()" class="toolbar-button" title="Inline Code">
-                        &lt;/&gt;
-                    </button>
-                    <button onclick="insertPreCode()" class="toolbar-button" title="Code Block">
-                        Code
-                    </button>
-                    <button onclick="insertLink()" class="toolbar-button" title="Link">
-                        A
-                    </button>
-                    <button onclick="insertUL()" class="toolbar-button" title="Unordered List">
-                        UL
-                    </button>
-                    <button onclick="insertOL()" class="toolbar-button" title="Ordered List">
-                        OL
-                    </button>
-                    <div class="border-l border-gray-300 mx-2"></div>
-                    <button onclick="beautifyHTML()" class="toolbar-button" title="Format HTML">
-                        Format
-                    </button>
-                    <button onclick="toggleLineNumbers()" class="toolbar-button" title="Toggle Line Numbers">
-                        #
-                    </button>
-                    <button onclick="toggleWordWrap()" class="toolbar-button" title="Toggle Word Wrap">
-                        Wrap
-                    </button>
-                    <select id="themeSelector" onchange="changeTheme()" class="text-xs px-2 py-1 border rounded">
-                        <option value="default">Light</option>
-                        <option value="monokai">Dark</option>
-                        <option value="github">GitHub</option>
-                    </select>
+                <!-- Editor Area -->
+                <div class="editor-container">
+                    <!-- Visual Editor -->
+                    <div id="visualEditor" class="p-4" style="min-height: 400px;">
+                        <div id="quillEditor" style="min-height: 350px;"></div>
+                    </div>
+                    <!-- Text Editor -->
+                    <div id="textEditor" class="p-4" style="display: none; min-height: 400px;">
+                        <textarea id="htmlEditor" style="width: 100%; height: 350px;"></textarea>
+                    </div>
                 </div>
             </div>
-
-            <!-- Editor Area -->
-            <div class="editor-container">
-                <!-- Visual Editor -->
-                <div id="visualEditor" class="p-4" style="min-height: 400px;">
-                    <div id="quillEditor" style="min-height: 350px;"></div>
-                </div>
-
-                <!-- Text Editor -->
-                <div id="textEditor" class="p-4" style="display: none; min-height: 400px;">
-                    <textarea id="htmlEditor" style="width: 100%; height: 350px;"></textarea>
-                </div>
-            </div>
-
-            <!-- Status Bar -->
-            <div class="status-bar">
-                <div class="flex items-center">
-                    <span id="wordCount">Words: 0</span>
-                    <span class="sync-indicator synced" id="syncIndicator" title="Sync status"></span>
-                </div>
-                <div class="flex items-center space-x-4">
-                    <span id="cursorPos" class="text-xs"></span>
-                    <span id="debugInfo" class="text-xs text-blue-600"></span>
-                </div>
+            <!-- Help Section -->
+            <div class="mt-6 bg-white rounded-lg shadow p-4">
+                <h3 class="font-semibold mb-2">Usage Tips:</h3>
+                <ul class="text-sm text-gray-600 space-y-1">
+                    <li>• Use Visual mode for rich text editing with formatting toolbar</li>
+                    <li>• Switch to HTML mode to add custom tags, classes, or complex markup</li>
+                    <li>• Click "Sync →" to transfer content between modes safely</li>
+                    <li>• HTML mode preserves custom attributes and advanced markup</li>
+                    <li>• Automatic word counting and cursor position tracking</li>
+                </ul>
             </div>
         </div>
-
-        <!-- Help Section -->
-        <div class="mt-6 bg-white rounded-lg shadow p-4">
-            <h3 class="font-semibold mb-2">Usage Tips:</h3>
-            <ul class="text-sm text-gray-600 space-y-1">
-                <li>• Use Visual mode for rich text editing with formatting toolbar</li>
-                <li>• Switch to HTML mode to add custom tags, classes, or complex markup</li>
-                <li>• Click "Sync →" to transfer content between modes safely</li>
-                <li>• HTML mode preserves custom attributes and advanced markup</li>
-                <li>• Automatic word counting and cursor position tracking</li>
-            </ul>
-        </div>
-    </div>
-
-    <!-- Scripts -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/xml/xml.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/css/css.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/htmlmixed/htmlmixed.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closetag.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchtags.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/fold/xml-fold.min.js"></script>
-
-    <script>
+        <!-- Scripts -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/xml/xml.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/css/css.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/htmlmixed/htmlmixed.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closetag.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchtags.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/fold/xml-fold.min.js"></script>
+        <script>
       // ===== Enhanced Professional Editor Implementation =====
       
       class DualEditor {
@@ -600,6 +594,6 @@
       document.addEventListener('DOMContentLoaded', () => {
         editor = new DualEditor();
       });
-    </script>
-</body>
+        </script>
+    </body>
 </html>
