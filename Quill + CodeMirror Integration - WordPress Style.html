@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Quill + CodeMirror Integration - WordPress Style (Tailwind)</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Quill CSS -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.snow.min.css" rel="stylesheet" />
+    <!-- CodeMirror CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/default.min.css" />
+    <style>
+      /* Ensure CodeMirror fills the space cleanly */
+      .CodeMirror { min-height: 420px; }
+    </style>
+  </head>
+  <body class="font-sans bg-gray-50">
+    <div class="max-w-4xl mx-auto my-8 p-6">
+      <h1 class="text-2xl font-bold mb-6">WordPress-Style Editor</h1>
+
+      <!-- Editor Container -->
+      <div class="border border-gray-300 rounded-lg overflow-hidden bg-white shadow-sm">
+        <!-- Toolbar / Tabs -->
+        <div class="flex flex-wrap justify-between items-center bg-gray-100 border-b border-gray-300 px-4 py-3 gap-3">
+          <div class="flex items-center gap-2">
+            <button id="visualBtn" class="px-4 py-2 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700" onclick="switchToVisual()">Visual</button>
+            <button id="textBtn" class="px-4 py-2 bg-gray-200 text-gray-700 rounded text-sm font-medium hover:bg-gray-300" onclick="switchToText()">Text</button>
+          </div>
+          <div class="flex flex-wrap items-center gap-2 text-sm text-gray-600">
+            <button class="px-3 py-1 bg-gray-200 rounded text-xs hover:bg-gray-300" onclick="toggleLineNumbers()">Line Numbers</button>
+            <button class="px-3 py-1 bg-gray-200 rounded text-xs hover:bg-gray-300" onclick="toggleWordWrap()">Word Wrap</button>
+            <button class="px-3 py-1 bg-gray-200 rounded text-xs hover:bg-gray-300" onclick="beautifyHTML()">Beautify HTML</button>
+            <button class="px-3 py-1 bg-gray-200 rounded text-xs hover:bg-gray-300" onclick="insertCodeTag()">Insert &lt;code&gt;</button>
+            <div class="hidden md:block w-px h-5 bg-gray-300"></div>
+            <span id="wordCount" class="whitespace-nowrap">Words: 0</span>
+          </div>
+        </div>
+
+        <!-- Visual Editor -->
+        <div id="visualEditor">
+          <div id="quillEditor" style="min-height: 420px;"></div>
+        </div>
+
+        <!-- Text Editor -->
+        <div id="textEditor" style="display: none;">
+          <!-- Quicktags -->
+          <div class="flex flex-wrap gap-2 items-center px-4 py-2 border-b border-gray-200 bg-gray-50 text-xs">
+            <span class="text-gray-600 mr-1">Quicktags:</span>
+            <button class="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300" onclick="insertTag('<p>','</p>')">&lt;p&gt;</button>
+            <button class="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300" onclick="insertTag('<h2>','</h2>')">&lt;h2&gt;</button>
+            <button class="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300" onclick="insertTag('<blockquote>','</blockquote>')">&lt;blockquote&gt;</button>
+            <button class="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300" onclick="insertTag('<code>','</code>')">&lt;code&gt;</button>
+            <button class="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300" onclick="insertPreCode()">&lt;pre&gt;&lt;code&gt;</button>
+            <button class="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300" onclick="insertUL()">&lt;ul&gt;…&lt;/ul&gt;</button>
+            <button class="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300" onclick="insertOL()">&lt;ol&gt;…&lt;/ol&gt;</button>
+            <button class="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300" onclick="insertLink()">&lt;a href&gt;</button>
+          </div>
+          <textarea id="htmlEditor" style="min-height: 420px;"></textarea>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/xml/xml.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/css/css.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/htmlmixed/htmlmixed.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closetag.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js"></script>
+
+    <script>
+      // ===== State =====
+      let quill, codeMirror;
+      let isUpdating = false; // prevent circular updates
+      let currentMode = 'visual'; // 'visual' | 'text'
+
+      // ===== Initial Content =====
+      const initialContent = `<p><strong>Welcome to the integrated editor!</strong></p>`;
+
+      // ===== Professional Sync Function =====
+      /**
+       * Sync content between Visual (Quill) and Text (CodeMirror).
+       * @param {'toText'|'toVisual'} direction
+       */
+      function syncEditors(direction) {
+        try {
+          if (direction === 'toText') {
+            const visualHTML = quill.root.innerHTML;
+            isUpdating = true;
+            codeMirror.setValue(visualHTML);
+            isUpdating = false;
+          } else if (direction === 'toVisual') {
+            const rawHTML = codeMirror.getValue();
+            isUpdating = true;
+            quill.clipboard.dangerouslyPasteHTML(rawHTML, 'silent');
+            isUpdating = false;
+          }
+          updateWordCount();
+        } catch (err) {
+          console.error('Editor sync failed:', err);
+          document.getElementById('debugInfo').textContent = 'Sync error: ' + err.message;
+        }
+      }
+
+      // ===== Init Quill =====
+      function initQuill() {
+        quill = new Quill('#quillEditor', {
+          theme: 'snow',
+          modules: {
+            toolbar: [
+              [{ header: [1, 2, 3, false] }],
+              ['bold', 'italic', 'underline', 'strike'],
+              [{ list: 'ordered' }, { list: 'bullet' }],
+              ['blockquote', 'code-block'],
+              ['link'],
+              ['clean']
+            ]
+          }
+        });
+
+        quill.clipboard.dangerouslyPasteHTML(initialContent);
+
+        // Only update CodeMirror when explicitly asked (avoid accidental loss of custom HTML)
+        quill.on('text-change', function() {
+          if (isUpdating || currentMode !== 'visual') return;
+          // We do not auto-sync to CodeMirror to preserve custom tags
+          updateWordCount();
+        });
+      }
+
+      // ===== Init CodeMirror =====
+      function initCodeMirror() {
+        codeMirror = CodeMirror.fromTextArea(document.getElementById('htmlEditor'), {
+          value: initialContent,
+          mode: 'htmlmixed',
+          lineNumbers: true,
+          lineWrapping: true,
+          autoCloseTags: true,
+          matchBrackets: true,
+          indentUnit: 2,
+          tabSize: 2,
+          theme: 'default'
+        });
+
+        codeMirror.on('change', function() {
+          if (isUpdating || currentMode !== 'text') return;
+          // (No auto-sync to visual; preview happens on switch)
+        });
+      }
+
+      // ===== Actions =====
+      function applyVisualToText() {
+        syncEditors('toText');
+        // Optional: jump to Text so dev can inspect resulting HTML
+        switchToText();
+      }
+
+      function switchToVisual() {
+        currentMode = 'visual';
+        document.getElementById('visualEditor').style.display = 'block';
+        document.getElementById('textEditor').style.display = 'none';
+        document.getElementById('visualBtn').className = 'px-4 py-2 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700';
+        document.getElementById('textBtn').className = 'px-4 py-2 bg-gray-200 text-gray-700 rounded text-sm font-medium hover:bg-gray-300';
+        // Render current raw HTML into Quill for preview
+        syncEditors('toVisual');
+        setTimeout(() => quill.focus(), 50);
+      }
+
+      function switchToText() {
+        currentMode = 'text';
+        document.getElementById('visualEditor').style.display = 'none';
+        document.getElementById('textEditor').style.display = 'block';
+        document.getElementById('textBtn').className = 'px-4 py-2 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700';
+        document.getElementById('visualBtn').className = 'px-4 py-2 bg-gray-200 text-gray-700 rounded text-sm font-medium hover:bg-gray-300';
+        setTimeout(() => { codeMirror.refresh(); codeMirror.focus(); }, 50);
+      }
+
+      function toggleLineNumbers() {
+        if (!codeMirror) return;
+        codeMirror.setOption('lineNumbers', !codeMirror.getOption('lineNumbers'));
+      }
+
+      function toggleWordWrap() {
+        if (!codeMirror) return;
+        codeMirror.setOption('lineWrapping', !codeMirror.getOption('lineWrapping'));
+      }
+
+      function beautifyHTML() {
+        if (!codeMirror) return;
+        const html = codeMirror.getValue();
+        const pretty = html
+          .replace(/></g, '>\n<')
+          .replace(/(<\/(p|div|h[1-6]|li|ul|ol|blockquote)>)/g, '$1\n')
+          .trim();
+        const cursor = codeMirror.getCursor();
+        isUpdating = true;
+        codeMirror.setValue(pretty);
+        isUpdating = false;
+        codeMirror.setCursor(cursor);
+      }
+
+      // ===== Quicktag helpers (Text mode) =====
+      function insertTag(openTag, closeTag) {
+        if (!codeMirror) return;
+        const sel = codeMirror.getSelection();
+        const cursor = codeMirror.getCursor();
+        if (sel) {
+          codeMirror.replaceSelection(openTag + sel + closeTag, 'around');
+        } else {
+          codeMirror.replaceRange(openTag + closeTag, cursor);
+          codeMirror.setCursor({ line: cursor.line, ch: cursor.ch + openTag.length });
+        }
+        codeMirror.focus();
+      }
+
+      function insertPreCode() { insertTag('<pre><code>', '</code></pre>'); }
+      function insertUL() { insertTag('<ul>\n  <li>', '</li>\n</ul>'); }
+      function insertOL() { insertTag('<ol>\n  <li>', '</li>\n</ol>'); }
+
+      function insertLink() {
+        if (!codeMirror) return;
+        const cursor = codeMirror.getCursor();
+        const tpl = '<a href="https://">link text</a>';
+        codeMirror.replaceRange(tpl, cursor);
+        codeMirror.setCursor({ line: cursor.line, ch: cursor.ch + tpl.indexOf('>') + 1 });
+        codeMirror.focus();
+      }
+
+      function insertCodeTag() { insertTag('<code>', '</code>'); }
+
+      // ===== Word count (based on visual text for readability) =====
+      function updateWordCount() {
+        if (!quill) return;
+        const text = quill.getText().trim();
+        const words = text ? text.split(/\s+/).length : 0;
+        document.getElementById('wordCount').textContent = `Words: ${words}`;
+      }
+
+      // ===== Boot =====
+      document.addEventListener('DOMContentLoaded', function () {
+        initQuill();
+        initCodeMirror();
+        // Seed CodeMirror with same initial content
+        codeMirror.setValue(initialContent);
+        updateWordCount();
+        switchToVisual();
+        document.getElementById('debugInfo').textContent =
+          'Editors ready. Add fresh HTML in Text mode; preview in Visual; apply back if needed.';
+      });
+    </script>
+  </body>
+</html>
