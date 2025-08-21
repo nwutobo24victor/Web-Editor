@@ -1,257 +1,605 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Quill + CodeMirror Integration - WordPress Style (Tailwind)</title>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Professional Dual-Mode Editor</title>
+    
+    <!-- Quill CSS -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.snow.min.css" rel="stylesheet">
+    
+    <!-- CodeMirror CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/monokai.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/github.min.css">
+    
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Quill CSS -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.snow.min.css" rel="stylesheet" />
-    <!-- CodeMirror CSS -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/default.min.css" />
+    
     <style>
-      /* Ensure CodeMirror fills the space cleanly */
-      .CodeMirror { min-height: 420px; }
+        .editor-container {
+            transition: all 0.3s ease;
+        }
+        
+        .CodeMirror {
+            font-family: 'Monaco', 'Consolas', 'Courier New', monospace;
+            font-size: 14px;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.375rem;
+        }
+        
+        .ql-container {
+            font-size: 14px;
+        }
+        
+        .toolbar-button {
+            @apply px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 rounded border transition-colors;
+        }
+        
+        .toolbar-button:hover {
+            @apply bg-gray-200;
+        }
+        
+        .status-bar {
+            @apply bg-gray-50 border-t px-4 py-2 text-sm text-gray-600 flex justify-between items-center;
+        }
+        
+        .sync-indicator {
+            @apply inline-block w-2 h-2 rounded-full ml-2 transition-colors;
+        }
+        
+        .sync-indicator.synced {
+            @apply bg-green-500;
+        }
+        
+        .sync-indicator.syncing {
+            @apply bg-yellow-500 animate-pulse;
+        }
+        
+        .sync-indicator.error {
+            @apply bg-red-500;
+        }
     </style>
-  </head>
-  <body class="font-sans bg-gray-50">
-    <div class="max-w-4xl mx-auto my-8 p-6">
-      <h1 class="text-2xl font-bold mb-6">WordPress-Style Editor</h1>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto p-6 max-w-6xl">
+        <!-- Header -->
+        <header class="mb-6">
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">Professional Dual-Mode Editor</h1>
+            <p class="text-gray-600">Switch between visual and HTML editing with intelligent sync</p>
+        </header>
 
-      <!-- Editor Container -->
-      <div class="border border-gray-300 rounded-lg overflow-hidden bg-white shadow-sm">
-        <!-- Toolbar / Tabs -->
-        <div class="flex flex-wrap justify-between items-center bg-gray-100 border-b border-gray-300 px-4 py-3 gap-3">
-          <div class="flex items-center gap-2">
-            <button id="visualBtn" class="px-4 py-2 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700" onclick="switchToVisual()">Visual</button>
-            <button id="textBtn" class="px-4 py-2 bg-gray-200 text-gray-700 rounded text-sm font-medium hover:bg-gray-300" onclick="switchToText()">Text</button>
-          </div>
-          <div class="flex flex-wrap items-center gap-2 text-sm text-gray-600">
-            <button class="px-3 py-1 bg-gray-200 rounded text-xs hover:bg-gray-300" onclick="toggleLineNumbers()">Line Numbers</button>
-            <button class="px-3 py-1 bg-gray-200 rounded text-xs hover:bg-gray-300" onclick="toggleWordWrap()">Word Wrap</button>
-            <button class="px-3 py-1 bg-gray-200 rounded text-xs hover:bg-gray-300" onclick="beautifyHTML()">Beautify HTML</button>
-            <button class="px-3 py-1 bg-gray-200 rounded text-xs hover:bg-gray-300" onclick="insertCodeTag()">Insert &lt;code&gt;</button>
-            <div class="hidden md:block w-px h-5 bg-gray-300"></div>
-            <span id="wordCount" class="whitespace-nowrap">Words: 0</span>
-          </div>
+        <!-- Main Editor Container -->
+        <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+            <!-- Control Bar -->
+            <div class="bg-gray-50 border-b px-4 py-3 flex justify-between items-center">
+                <!-- Mode Buttons -->
+                <div class="flex space-x-2">
+                    <button id="visualBtn" onclick="switchToVisual()" 
+                            class="px-4 py-2 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700 transition-colors">
+                        Visual
+                    </button>
+                    <button id="textBtn" onclick="switchToText()" 
+                            class="px-4 py-2 bg-gray-200 text-gray-700 rounded text-sm font-medium hover:bg-gray-300 transition-colors">
+                        HTML
+                    </button>
+                    <button onclick="syncToOtherEditor()" 
+                            class="px-4 py-2 bg-green-600 text-white rounded text-sm font-medium hover:bg-green-700 transition-colors">
+                        Sync →
+                    </button>
+                </div>
+
+                <!-- Toolbar for Text Mode -->
+                <div id="textToolbar" class="flex space-x-2" style="display: none;">
+                    <button onclick="insertTag('<p>', '</p>')" class="toolbar-button" title="Bold">
+                        P
+                    </button>
+                    <button onclick="insertTag('<strong>', '</strong>')" class="toolbar-button" title="Bold">
+                        <strong>B</strong>
+                    </button>
+                    <button onclick="insertTag('<em>', '</em>')" class="toolbar-button" title="Italic">
+                        <em>I</em>
+                    </button>
+                    <button onclick="insertTag('<h1>', '</h1>')" class="toolbar-button" title="Heading 1">
+                        H1
+                    </button>
+                    <button onclick="insertTag('<h2>', '</h2>')" class="toolbar-button" title="Heading 2">
+                        H2
+                    </button>
+                    <button onclick="insertCodeTag()" class="toolbar-button" title="Inline Code">
+                        &lt;/&gt;
+                    </button>
+                    <button onclick="insertPreCode()" class="toolbar-button" title="Code Block">
+                        Code
+                    </button>
+                    <button onclick="insertLink()" class="toolbar-button" title="Link">
+                        A
+                    </button>
+                    <button onclick="insertUL()" class="toolbar-button" title="Unordered List">
+                        UL
+                    </button>
+                    <button onclick="insertOL()" class="toolbar-button" title="Ordered List">
+                        OL
+                    </button>
+                    <div class="border-l border-gray-300 mx-2"></div>
+                    <button onclick="beautifyHTML()" class="toolbar-button" title="Format HTML">
+                        Format
+                    </button>
+                    <button onclick="toggleLineNumbers()" class="toolbar-button" title="Toggle Line Numbers">
+                        #
+                    </button>
+                    <button onclick="toggleWordWrap()" class="toolbar-button" title="Toggle Word Wrap">
+                        Wrap
+                    </button>
+                    <select id="themeSelector" onchange="changeTheme()" class="text-xs px-2 py-1 border rounded">
+                        <option value="default">Light</option>
+                        <option value="monokai">Dark</option>
+                        <option value="github">GitHub</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Editor Area -->
+            <div class="editor-container">
+                <!-- Visual Editor -->
+                <div id="visualEditor" class="p-4" style="min-height: 400px;">
+                    <div id="quillEditor" style="min-height: 350px;"></div>
+                </div>
+
+                <!-- Text Editor -->
+                <div id="textEditor" class="p-4" style="display: none; min-height: 400px;">
+                    <textarea id="htmlEditor" style="width: 100%; height: 350px;"></textarea>
+                </div>
+            </div>
+
+            <!-- Status Bar -->
+            <div class="status-bar">
+                <div class="flex items-center">
+                    <span id="wordCount">Words: 0</span>
+                    <span class="sync-indicator synced" id="syncIndicator" title="Sync status"></span>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <span id="cursorPos" class="text-xs"></span>
+                    <span id="debugInfo" class="text-xs text-blue-600"></span>
+                </div>
+            </div>
         </div>
 
-        <!-- Visual Editor -->
-        <div id="visualEditor">
-          <div id="quillEditor" style="min-height: 420px;"></div>
+        <!-- Help Section -->
+        <div class="mt-6 bg-white rounded-lg shadow p-4">
+            <h3 class="font-semibold mb-2">Usage Tips:</h3>
+            <ul class="text-sm text-gray-600 space-y-1">
+                <li>• Use Visual mode for rich text editing with formatting toolbar</li>
+                <li>• Switch to HTML mode to add custom tags, classes, or complex markup</li>
+                <li>• Click "Sync →" to transfer content between modes safely</li>
+                <li>• HTML mode preserves custom attributes and advanced markup</li>
+                <li>• Automatic word counting and cursor position tracking</li>
+            </ul>
         </div>
-
-        <!-- Text Editor -->
-        <div id="textEditor" style="display: none;">
-          <!-- Quicktags -->
-          <div class="flex flex-wrap gap-2 items-center px-4 py-2 border-b border-gray-200 bg-gray-50 text-xs">
-            <span class="text-gray-600 mr-1">Quicktags:</span>
-            <button class="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300" onclick="insertTag('<p>','</p>')">&lt;p&gt;</button>
-            <button class="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300" onclick="insertTag('<h2>','</h2>')">&lt;h2&gt;</button>
-            <button class="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300" onclick="insertTag('<blockquote>','</blockquote>')">&lt;blockquote&gt;</button>
-            <button class="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300" onclick="insertTag('<code>','</code>')">&lt;code&gt;</button>
-            <button class="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300" onclick="insertPreCode()">&lt;pre&gt;&lt;code&gt;</button>
-            <button class="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300" onclick="insertUL()">&lt;ul&gt;…&lt;/ul&gt;</button>
-            <button class="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300" onclick="insertOL()">&lt;ol&gt;…&lt;/ol&gt;</button>
-            <button class="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300" onclick="insertLink()">&lt;a href&gt;</button>
-          </div>
-          <textarea id="htmlEditor" style="min-height: 420px;"></textarea>
-        </div>
-      </div>
-
     </div>
 
-    <!-- Libraries -->
+    <!-- Scripts -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/xml/xml.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/css/css.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/css/css.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/htmlmixed/htmlmixed.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closetag.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchtags.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/fold/xml-fold.min.js"></script>
 
     <script>
-      // ===== State =====
-      let quill, codeMirror;
-      let isUpdating = false; // prevent circular updates
-      let currentMode = 'visual'; // 'visual' | 'text'
+      // ===== Enhanced Professional Editor Implementation =====
+      
+      class DualEditor {
+        constructor() {
+          this.quill = null;
+          this.codeMirror = null;
+          this.isUpdating = false;
+          this.currentMode = 'visual';
+          this.lastSyncTime = 0;
+          this.syncThrottleMs = 100;
+          
+          this.initialContent = `<h1>Welcome to the Professional Editor!</h1>
+<p>This is a <strong>dual-mode editor</strong> that supports both visual and HTML editing.</p>
+<p>Features include:</p>
+<ul>
+  <li>Rich text formatting</li>
+  <li>HTML source editing</li>
+  <li>Intelligent content sync</li>
+  <li>Professional developer tools</li>
+</ul>
+<p>Try switching between Visual and HTML modes to see the magic! ✨</p>`;
 
-      // ===== Initial Content =====
-      const initialContent = `<p><strong>Welcome to the integrated editor!</strong></p>`;
+          this.init();
+        }
 
-      // ===== Professional Sync Function =====
-      /**
-       * Sync content between Visual (Quill) and Text (CodeMirror).
-       * @param {'toText'|'toVisual'} direction
-       */
-      function syncEditors(direction) {
-        try {
-          if (direction === 'toText') {
-            const visualHTML = quill.root.innerHTML;
-            isUpdating = true;
-            codeMirror.setValue(visualHTML);
-            isUpdating = false;
-          } else if (direction === 'toVisual') {
-            const rawHTML = codeMirror.getValue();
-            isUpdating = true;
-            quill.clipboard.dangerouslyPasteHTML(rawHTML, 'silent');
-            isUpdating = false;
+        async init() {
+          try {
+            await this.initQuill();
+            await this.initCodeMirror();
+            this.setupEventListeners();
+            this.updateWordCount();
+            this.setSyncStatus('synced');
+            this.setDebugInfo('Editors initialized successfully');
+          } catch (error) {
+            console.error('Editor initialization failed:', error);
+            this.setDebugInfo('Initialization error: ' + error.message);
+            this.setSyncStatus('error');
           }
-          updateWordCount();
-        } catch (err) {
-          console.error('Editor sync failed:', err);
-          document.getElementById('debugInfo').textContent = 'Sync error: ' + err.message;
+        }
+
+        async initQuill() {
+          return new Promise((resolve, reject) => {
+            try {
+              this.quill = new Quill('#quillEditor', {
+                theme: 'snow',
+                placeholder: 'Start writing...',
+                modules: {
+                  toolbar: [
+                    [{ header: [1, 2, 3, 4, 5, 6, false] }],
+                    [{ size: ['small', false, 'large', 'huge'] }],
+                    ['bold', 'italic', 'underline', 'strike'],
+                    [{ color: [] }, { background: [] }],
+                    [{ script: 'sub' }, { script: 'super' }],
+                    [{ list: 'ordered' }, { list: 'bullet' }, { indent: '-1' }, { indent: '+1' }],
+                    [{ direction: 'rtl' }, { align: [] }],
+                    ['blockquote', 'code-block'],
+                    ['link', 'image', 'video'],
+                    ['clean']
+                  ]
+                }
+              });
+
+              this.quill.clipboard.dangerouslyPasteHTML(this.initialContent);
+              
+              this.quill.on('text-change', (delta, oldDelta, source) => {
+                if (this.isUpdating || source !== 'user') return;
+                this.updateWordCount();
+                this.updateCursorPosition();
+              });
+
+              this.quill.on('selection-change', () => {
+                this.updateCursorPosition();
+              });
+
+              resolve();
+            } catch (error) {
+              reject(error);
+            }
+          });
+        }
+
+        async initCodeMirror() {
+          return new Promise((resolve, reject) => {
+            try {
+              const textarea = document.getElementById('htmlEditor');
+              this.codeMirror = CodeMirror.fromTextArea(textarea, {
+                mode: 'htmlmixed',
+                theme: 'default',
+                lineNumbers: true,
+                lineWrapping: true,
+                autoCloseTags: true,
+                matchTags: { bothTags: true },
+                indentUnit: 2,
+                tabSize: 2,
+                autocorrect: true,
+                spellcheck: false,
+                extraKeys: {
+                  'Ctrl-Space': 'autocomplete',
+                  'F11': (cm) => {
+                    cm.setOption('fullScreen', !cm.getOption('fullScreen'));
+                  },
+                  'Esc': (cm) => {
+                    if (cm.getOption('fullScreen')) cm.setOption('fullScreen', false);
+                  }
+                }
+              });
+
+              this.codeMirror.setValue(this.initialContent);
+
+              this.codeMirror.on('change', (instance, changeObj) => {
+                if (this.isUpdating || changeObj.origin === 'setValue') return;
+                this.updateCursorPosition();
+              });
+
+              this.codeMirror.on('cursorActivity', () => {
+                this.updateCursorPosition();
+              });
+
+              resolve();
+            } catch (error) {
+              reject(error);
+            }
+          });
+        }
+
+        setupEventListeners() {
+          // Keyboard shortcuts
+          document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey || e.metaKey) {
+              switch (e.key) {
+                case '1':
+                  e.preventDefault();
+                  this.switchToVisual();
+                  break;
+                case '2':
+                  e.preventDefault();
+                  this.switchToText();
+                  break;
+                case 's':
+                  e.preventDefault();
+                  this.syncToOtherEditor();
+                  break;
+              }
+            }
+          });
+        }
+
+        throttledSync(direction) {
+          const now = Date.now();
+          if (now - this.lastSyncTime < this.syncThrottleMs) return;
+          this.lastSyncTime = now;
+          this.syncEditors(direction);
+        }
+
+        syncEditors(direction) {
+          if (this.isUpdating) return;
+          
+          this.setSyncStatus('syncing');
+          
+          try {
+            this.isUpdating = true;
+            
+            if (direction === 'toText') {
+              const visualHTML = this.quill.root.innerHTML;
+              const cleanHTML = this.cleanHTML(visualHTML);
+              this.codeMirror.setValue(cleanHTML);
+              this.setDebugInfo('Synced to HTML mode');
+            } else if (direction === 'toVisual') {
+              const rawHTML = this.codeMirror.getValue();
+              const safeHTML = this.sanitizeHTML(rawHTML);
+              this.quill.clipboard.dangerouslyPasteHTML(safeHTML, 'silent');
+              this.setDebugInfo('Synced to Visual mode');
+            }
+            
+            this.updateWordCount();
+            this.setSyncStatus('synced');
+            
+          } catch (error) {
+            console.error('Sync failed:', error);
+            this.setDebugInfo('Sync error: ' + error.message);
+            this.setSyncStatus('error');
+          } finally {
+            this.isUpdating = false;
+          }
+        }
+
+        cleanHTML(html) {
+          // Remove Quill-specific classes and clean up
+          return html
+            .replace(/class="[^"]*"/g, '')
+            .replace(/\s+/g, ' ')
+            .replace(/>\s+</g, '><')
+            .trim();
+        }
+
+        sanitizeHTML(html) {
+          // Basic HTML sanitization for visual editor
+          // In production, consider using DOMPurify
+          return html.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
+        }
+
+        switchToVisual() {
+          this.currentMode = 'visual';
+          this.toggleEditorVisibility('visual');
+          this.updateModeButtons();
+          this.syncEditors('toVisual');
+          
+          setTimeout(() => {
+            this.quill.focus();
+          }, 100);
+        }
+
+        switchToText() {
+          this.currentMode = 'text';
+          this.toggleEditorVisibility('text');
+          this.updateModeButtons();
+          this.syncEditors('toText');
+          
+          setTimeout(() => {
+            this.codeMirror.refresh();
+            this.codeMirror.focus();
+          }, 100);
+        }
+
+        toggleEditorVisibility(mode) {
+          const visualEditor = document.getElementById('visualEditor');
+          const textEditor = document.getElementById('textEditor');
+          const textToolbar = document.getElementById('textToolbar');
+          
+          if (mode === 'visual') {
+            visualEditor.style.display = 'block';
+            textEditor.style.display = 'none';
+            textToolbar.style.display = 'none';
+          } else {
+            visualEditor.style.display = 'none';
+            textEditor.style.display = 'block';
+            textToolbar.style.display = 'flex';
+          }
+        }
+
+        updateModeButtons() {
+          const visualBtn = document.getElementById('visualBtn');
+          const textBtn = document.getElementById('textBtn');
+          
+          if (this.currentMode === 'visual') {
+            visualBtn.className = 'px-4 py-2 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700 transition-colors';
+            textBtn.className = 'px-4 py-2 bg-gray-200 text-gray-700 rounded text-sm font-medium hover:bg-gray-300 transition-colors';
+          } else {
+            textBtn.className = 'px-4 py-2 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700 transition-colors';
+            visualBtn.className = 'px-4 py-2 bg-gray-200 text-gray-700 rounded text-sm font-medium hover:bg-gray-300 transition-colors';
+          }
+        }
+
+        syncToOtherEditor() {
+          if (this.currentMode === 'visual') {
+            this.syncEditors('toText');
+          } else {
+            this.syncEditors('toVisual');
+          }
+        }
+
+        updateWordCount() {
+          if (!this.quill) return;
+          
+          const text = this.quill.getText().trim();
+          const words = text ? text.split(/\s+/).filter(word => word.length > 0).length : 0;
+          const chars = text.length;
+          
+          document.getElementById('wordCount').textContent = `Words: ${words} | Chars: ${chars}`;
+        }
+
+        updateCursorPosition() {
+          const cursorPosElement = document.getElementById('cursorPos');
+          
+          if (this.currentMode === 'visual' && this.quill) {
+            const selection = this.quill.getSelection();
+            if (selection) {
+              cursorPosElement.textContent = `Pos: ${selection.index}`;
+            }
+          } else if (this.currentMode === 'text' && this.codeMirror) {
+            const cursor = this.codeMirror.getCursor();
+            cursorPosElement.textContent = `Line: ${cursor.line + 1}, Col: ${cursor.ch + 1}`;
+          }
+        }
+
+        setSyncStatus(status) {
+          const indicator = document.getElementById('syncIndicator');
+          indicator.className = `sync-indicator ${status}`;
+        }
+
+        setDebugInfo(message) {
+          document.getElementById('debugInfo').textContent = message;
+          setTimeout(() => {
+            document.getElementById('debugInfo').textContent = '';
+          }, 3000);
+        }
+
+        // HTML editing helper methods
+        insertTag(openTag, closeTag) {
+          if (!this.codeMirror) return;
+          
+          const selection = this.codeMirror.getSelection();
+          const cursor = this.codeMirror.getCursor();
+          
+          if (selection) {
+            this.codeMirror.replaceSelection(openTag + selection + closeTag, 'around');
+          } else {
+            this.codeMirror.replaceRange(openTag + closeTag, cursor);
+            this.codeMirror.setCursor({ 
+              line: cursor.line, 
+              ch: cursor.ch + openTag.length 
+            });
+          }
+          
+          this.codeMirror.focus();
+        }
+
+        beautifyHTML() {
+          if (!this.codeMirror) return;
+          
+          const html = this.codeMirror.getValue();
+          const cursor = this.codeMirror.getCursor();
+          
+          try {
+            const formatted = this.formatHTML(html);
+            this.codeMirror.setValue(formatted);
+            this.codeMirror.setCursor(cursor);
+            this.setDebugInfo('HTML formatted');
+          } catch (error) {
+            this.setDebugInfo('Format error: ' + error.message);
+          }
+        }
+
+        formatHTML(html) {
+          return html
+            .replace(/></g, '>\n<')
+            .replace(/(<\/(div|p|h[1-6]|li|ul|ol|blockquote|section|article|header|footer|nav|main)>)/g, '$1\n')
+            .replace(/(<(div|p|h[1-6]|li|ul|ol|blockquote|section|article|header|footer|nav|main)[^>]*>)/g, '\n$1')
+            .split('\n')
+            .map(line => line.trim())
+            .filter(line => line.length > 0)
+            .map((line, index, lines) => {
+              const depth = this.getIndentDepth(lines.slice(0, index + 1));
+              return '  '.repeat(Math.max(0, depth)) + line;
+            })
+            .join('\n');
+        }
+
+        getIndentDepth(lines) {
+          let depth = 0;
+          for (const line of lines) {
+            if (line.match(/^<[^\/!][^>]*[^\/]>$/)) depth++;
+            if (line.match(/^<\/[^>]+>$/)) depth--;
+          }
+          return Math.max(0, depth);
+        }
+
+        toggleLineNumbers() {
+          if (!this.codeMirror) return;
+          const current = this.codeMirror.getOption('lineNumbers');
+          this.codeMirror.setOption('lineNumbers', !current);
+        }
+
+        toggleWordWrap() {
+          if (!this.codeMirror) return;
+          const current = this.codeMirror.getOption('lineWrapping');
+          this.codeMirror.setOption('lineWrapping', !current);
+        }
+
+        changeTheme() {
+          if (!this.codeMirror) return;
+          const theme = document.getElementById('themeSelector').value;
+          this.codeMirror.setOption('theme', theme);
         }
       }
 
-      // ===== Init Quill =====
-      function initQuill() {
-        quill = new Quill('#quillEditor', {
-          theme: 'snow',
-          modules: {
-            toolbar: [
-              [{ header: [1, 2, 3, false] }],
-              ['bold', 'italic', 'underline', 'strike'],
-              [{ list: 'ordered' }, { list: 'bullet' }],
-              ['blockquote', 'code-block'],
-              ['link'],
-              ['clean']
-            ]
-          }
-        });
+      // Global instance
+      let editor;
 
-        quill.clipboard.dangerouslyPasteHTML(initialContent);
-
-        // Only update CodeMirror when explicitly asked (avoid accidental loss of custom HTML)
-        quill.on('text-change', function() {
-          if (isUpdating || currentMode !== 'visual') return;
-          // We do not auto-sync to CodeMirror to preserve custom tags
-          updateWordCount();
-        });
-      }
-
-      // ===== Init CodeMirror =====
-      function initCodeMirror() {
-        codeMirror = CodeMirror.fromTextArea(document.getElementById('htmlEditor'), {
-          value: initialContent,
-          mode: 'htmlmixed',
-          lineNumbers: true,
-          lineWrapping: true,
-          autoCloseTags: true,
-          matchBrackets: true,
-          indentUnit: 2,
-          tabSize: 2,
-          theme: 'default'
-        });
-
-        codeMirror.on('change', function() {
-          if (isUpdating || currentMode !== 'text') return;
-          // (No auto-sync to visual; preview happens on switch)
-        });
-      }
-
-      // ===== Actions =====
-      function applyVisualToText() {
-        syncEditors('toText');
-        // Optional: jump to Text so dev can inspect resulting HTML
-        switchToText();
-      }
-
-      function switchToVisual() {
-        currentMode = 'visual';
-        document.getElementById('visualEditor').style.display = 'block';
-        document.getElementById('textEditor').style.display = 'none';
-        document.getElementById('visualBtn').className = 'px-4 py-2 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700';
-        document.getElementById('textBtn').className = 'px-4 py-2 bg-gray-200 text-gray-700 rounded text-sm font-medium hover:bg-gray-300';
-        // Render current raw HTML into Quill for preview
-        syncEditors('toVisual');
-        setTimeout(() => quill.focus(), 50);
-      }
-
-      function switchToText() {
-        currentMode = 'text';
-        document.getElementById('visualEditor').style.display = 'none';
-        document.getElementById('textEditor').style.display = 'block';
-        document.getElementById('textBtn').className = 'px-4 py-2 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700';
-        document.getElementById('visualBtn').className = 'px-4 py-2 bg-gray-200 text-gray-700 rounded text-sm font-medium hover:bg-gray-300';
-        setTimeout(() => { codeMirror.refresh(); codeMirror.focus(); }, 50);
-      }
-
-      function toggleLineNumbers() {
-        if (!codeMirror) return;
-        codeMirror.setOption('lineNumbers', !codeMirror.getOption('lineNumbers'));
-      }
-
-      function toggleWordWrap() {
-        if (!codeMirror) return;
-        codeMirror.setOption('lineWrapping', !codeMirror.getOption('lineWrapping'));
-      }
-
-      function beautifyHTML() {
-        if (!codeMirror) return;
-        const html = codeMirror.getValue();
-        const pretty = html
-          .replace(/></g, '>\n<')
-          .replace(/(<\/(p|div|h[1-6]|li|ul|ol|blockquote)>)/g, '$1\n')
-          .trim();
-        const cursor = codeMirror.getCursor();
-        isUpdating = true;
-        codeMirror.setValue(pretty);
-        isUpdating = false;
-        codeMirror.setCursor(cursor);
-      }
-
-      // ===== Quicktag helpers (Text mode) =====
-      function insertTag(openTag, closeTag) {
-        if (!codeMirror) return;
-        const sel = codeMirror.getSelection();
-        const cursor = codeMirror.getCursor();
-        if (sel) {
-          codeMirror.replaceSelection(openTag + sel + closeTag, 'around');
-        } else {
-          codeMirror.replaceRange(openTag + closeTag, cursor);
-          codeMirror.setCursor({ line: cursor.line, ch: cursor.ch + openTag.length });
-        }
-        codeMirror.focus();
-      }
+      // Global functions for HTML buttons
+      function switchToVisual() { editor.switchToVisual(); }
+      function switchToText() { editor.switchToText(); }
+      function syncToOtherEditor() { editor.syncToOtherEditor(); }
+      function insertTag(open, close) { editor.insertTag(open, close); }
+      function beautifyHTML() { editor.beautifyHTML(); }
+      function toggleLineNumbers() { editor.toggleLineNumbers(); }
+      function toggleWordWrap() { editor.toggleWordWrap(); }
+      function changeTheme() { editor.changeTheme(); }
 
       function insertPreCode() { insertTag('<pre><code>', '</code></pre>'); }
       function insertUL() { insertTag('<ul>\n  <li>', '</li>\n</ul>'); }
       function insertOL() { insertTag('<ol>\n  <li>', '</li>\n</ol>'); }
-
-      function insertLink() {
-        if (!codeMirror) return;
-        const cursor = codeMirror.getCursor();
-        const tpl = '<a href="https://">link text</a>';
-        codeMirror.replaceRange(tpl, cursor);
-        codeMirror.setCursor({ line: cursor.line, ch: cursor.ch + tpl.indexOf('>') + 1 });
-        codeMirror.focus();
-      }
-
       function insertCodeTag() { insertTag('<code>', '</code>'); }
 
-      // ===== Word count (based on visual text for readability) =====
-      function updateWordCount() {
-        if (!quill) return;
-        const text = quill.getText().trim();
-        const words = text ? text.split(/\s+/).length : 0;
-        document.getElementById('wordCount').textContent = `Words: ${words}`;
+      function insertLink() {
+        if (!editor.codeMirror) return;
+        const cursor = editor.codeMirror.getCursor();
+        const template = '<a href="https://example.com">link text</a>';
+        editor.codeMirror.replaceRange(template, cursor);
+        editor.codeMirror.setSelection(
+          { line: cursor.line, ch: cursor.ch + 9 },
+          { line: cursor.line, ch: cursor.ch + 28 }
+        );
+        editor.codeMirror.focus();
       }
 
-      // ===== Boot =====
-      document.addEventListener('DOMContentLoaded', function () {
-        initQuill();
-        initCodeMirror();
-        // Seed CodeMirror with same initial content
-        codeMirror.setValue(initialContent);
-        updateWordCount();
-        switchToVisual();
-        document.getElementById('debugInfo').textContent =
-          'Editors ready. Add fresh HTML in Text mode; preview in Visual; apply back if needed.';
+      // Initialize when DOM is ready
+      document.addEventListener('DOMContentLoaded', () => {
+        editor = new DualEditor();
       });
     </script>
-  </body>
+</body>
 </html>
